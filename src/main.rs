@@ -25,22 +25,23 @@ fn main() -> Result<(), ()> {
                     .map_err(|err| eprintln!("ERROR: {}", err))?;
 
                 loop {
+                    cam.read(&mut frame).expect("Failed to read frame");
+                    buf.clear();
+                    let _ = opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &Vector::new());
+
                     let image_data = format!(
                         "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: {}\r\n\r\n",
                         buf.len()
                     );
-                    cam.read(&mut frame).expect("Failed to read frame");
-                    buf.clear();
-                    let _ = opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &Vector::new());
                     stream
                         .write_all(image_data.as_bytes())
                         .map_err(|err| eprintln!("ERROR writing image data: {}", err))?;
                     stream
                         .write_all(buf.as_slice())
                         .map_err(|err| eprintln!("ERROR writing frame buf: {}", err))?;
-                    // let _ = stream
-                    //     .write_all(b"\r\n")
-                    //     .map(|err| eprintln!("ERROR writing end of frame: {:?}", err));
+                    stream
+                        .write_all(b"\r\n")
+                        .map_err(|err| eprintln!("ERROR terminating frame: {:?}", err))?;
                     stream.flush().unwrap();
                 }
             }
